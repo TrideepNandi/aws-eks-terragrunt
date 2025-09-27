@@ -1,0 +1,254 @@
+# Terraform and Terragrunt files
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfvars.json
+
+# Terraform cache directories
+.terraform/
+.terraform.lock.hcl
+
+# Terragrunt cache directories
+.terragrunt-cache/
+
+# Generated files by Terragrunt
+backend.tf
+provider.tf
+terraform_override.tf
+
+# Crash log files
+crash.log
+crash.*.log
+
+# Exclude all .tfvars files, which are likely to contain sensitive data
+*.tfvars
+*.tfvars.json
+
+# Ignore override files as they are usually used to override resources locally
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Include override files you do wish to add to version control using negated pattern
+# !example_override.tf
+
+# Include tfplan files to ignore the plan output of command: terraform plan -out=tfplan
+*tfplan*
+
+# Ignore CLI configuration files
+.terraformrc
+terraform.rc
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE and Editor files
+# Visual Studio Code
+.vscode/
+*.code-workspace
+
+# JetBrains IDEs (IntelliJ, PyCharm, WebStorm, etc.)
+.idea/
+*.iws
+*.iml
+*.ipr
+
+# Vim
+*.swp
+*.swo
+*~
+.netrwhist
+*~
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
+
+# Sublime Text
+*.sublime-workspace
+*.sublime-project
+
+# Atom
+.atom/
+
+# Eclipse
+.metadata
+bin/
+tmp/
+*.tmp
+*.bak
+*.swp
+*~.nib
+local.properties
+.settings/
+.loadpath
+.recommenders
+.project
+.externalToolBuilders/
+*.launch
+*.pydevproject
+.cproject
+.autotools
+.factorypath
+.buildpath
+.target
+
+# NetBeans
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+build/
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+# Xcode
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+xcuserdata/
+*.moved-aside
+*.xccheckout
+*.xcscmblueprint
+
+# Android Studio
+*.iml
+.gradle
+/local.properties
+/.idea/caches
+/.idea/libraries
+/.idea/modules.xml
+/.idea/workspace.xml
+/.idea/navEditor.xml
+/.idea/assetWizardSettings.xml
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+
+# Nano
+*.save
+
+# Kate
+.kateconfig
+*.kate-swp
+.kateproject
+.kateproject.d
+
+# Gedit
+*~
+
+# TextMate
+*.tmproj
+*.tmproject
+tmtags
+
+# BBEdit
+*.bbprojectd
+
+# Notepad++
+*.bak
+
+# Brackets
+.brackets.json
+
+# CodeBlocks
+*.depend
+*.layout
+*.cbp
+
+# Dev-C++
+*.dev
+
+# Lazarus
+*.lpi
+*.lps
+*.compiled
+*.identcache
+*.tvsconfig
+*.dsk
+
+# Code::Blocks
+*.cbp
+*.layout
+*.depend
+
+# Qt Creator
+CMakeLists.txt.user*
+*.pro.user*
+*.qbs.user*
+*.user
+
+# KDevelop
+*.kdev4
+.kdev4/
+
+# MonoDevelop
+*.userprefs
+
+# Xamarin Studio
+*.userprefs
+
+# Log files
+*.log
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Backup files
+*.backup
+*.bak
+
+# Temporary files
+*.tmp
+*.temp
+
+# AWS CLI files (if any)
+.aws/
+
+terraform.tfstate
+terraform.tfstate.backup
+
+# Archives
+*.zip
+*.tar.gz
+*.tgz
+*.rar
+
+# Ignore Mac system files
+.AppleDouble
+.LSOverride
+
+# Ignore Windows system files
+desktop.ini
+$RECYCLE.BIN/
+
+# Ignore Linux system files
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
