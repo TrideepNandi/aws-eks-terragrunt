@@ -208,7 +208,36 @@ locals {
 }
 ```
 
-## 📋 **Deployment Strategies**
+## � ***Enhanced Deployment Script**
+
+The project includes an advanced deployment script (`script.sh`) with dependency management, parallel execution, and region filtering capabilities.
+
+### **Quick Deployment with Script**
+```bash
+# Deploy everything with dependency management
+./script.sh deploy all
+
+# Deploy specific region
+./script.sh deploy region --region us-west-2
+
+# Deploy with parallel execution for speed
+./script.sh deploy infra --parallel
+
+# Dry run to preview changes
+./script.sh destroy all --dry-run
+```
+
+### **Script Features**
+- ✅ **Automatic Dependency Management**: Enforces proper deployment order
+- ✅ **Parallel Execution**: Run independent components simultaneously
+- ✅ **Region/Cluster Filtering**: Target specific regions or clusters
+- ✅ **Dry Run Mode**: Preview actions without making changes
+- ✅ **Status Tracking**: Track deployment progress and dependencies
+- ✅ **Colored Output**: Enhanced readability with progress indicators
+
+For complete script documentation, see **[Deployment Script Guide](docs/deployment-script.md)**.
+
+## 📋 **Manual Deployment Strategies**
 
 ### **Strategy 1: Regional Deployment (Recommended)**
 Deploy entire regions independently for optimal performance and isolation:
@@ -293,6 +322,7 @@ cd ../../eu-west-1/app-cluster/k8s/ && terragrunt apply
 ## 📚 **Documentation**
 
 ### **Deployment & Operations**
+- **[Deployment Script Guide](docs/deployment-script.md)** - Enhanced deployment script with dependency management and parallel execution
 - **[State Management](docs/state-management.md)** - Dynamic state file organization and backend configuration
 - **[Deployment Guide](docs/deployment-guide.md)** - Comprehensive deployment strategies and troubleshooting
 
