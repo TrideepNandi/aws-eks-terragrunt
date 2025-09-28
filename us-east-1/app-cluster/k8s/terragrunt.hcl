@@ -73,7 +73,7 @@ inputs = {
   }
 
   eks = {
-    cluster_version                 = "1.30"
+    cluster_version                 = "1.33"
     cluster_endpoint_public_access  = true
     cluster_endpoint_private_access = true
 
