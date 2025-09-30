@@ -1,27 +1,28 @@
-# Developer role configuration - Read-only access for debugging
 locals {
-  # Get account information from account.hcl
   account_vars = read_terragrunt_config(find_in_parent_folders("account.hcl"))
-  account_id = local.account_vars.locals.account_id
+  account_id   = local.account_vars.locals.account_id
+
   policies = {
-    developer_readonly = {
-      name_suffix = "developer-readonly-policy"
-      description = "Developer read-only access to logs and basic resources"
+    developer_eks_readonly = {
+      name_suffix  = "developer-eks-readonly"
+      description  = "Read-only EKS access"
       policy = jsonencode({
         Version = "2012-10-17"
         Statement = [
           {
-            Effect = "Allow"
+            Effect   = "Allow"
             Action = [
+              "eks:DescribeCluster",
+              "eks:ListClusters",
+              "eks:ListNodegroups",
+              "eks:DescribeNodegroup",
               "logs:DescribeLogGroups",
               "logs:DescribeLogStreams",
               "logs:GetLogEvents",
               "logs:FilterLogEvents",
+              "cloudwatch:GetMetricData",
               "cloudwatch:GetMetricStatistics",
               "cloudwatch:ListMetrics",
-              "cloudwatch:GetMetricData",
-              "eks:DescribeCluster",
-              "eks:ListClusters",
               "ecr:GetAuthorizationToken",
               "ecr:BatchCheckLayerAvailability",
               "ecr:GetDownloadUrlForLayer",
@@ -36,33 +37,29 @@ locals {
 
   roles = {
     developer = {
-      name_suffix = "developer-role"
-      description = "Developer read-only role for application debugging"
+      name_suffix  = "developer-role"
+      description  = "Developer read-only EKS role"
+
       assume_role_policy = jsonencode({
         Version = "2012-10-17"
         Statement = [
           {
-            Action = "sts:AssumeRole"
             Effect = "Allow"
             Principal = {
-              AWS = "arn:aws:iam::${local.account_id}:root"
+              AWS = "arn:aws:iam::${local.account_id}:user/eks-developer"
             }
-            Condition = {
-              StringEquals = {
-                "sts:ExternalId" = "developer-access"
-              }
-            }
+            Action    = "sts:AssumeRole"
           }
         ]
       })
-      managed_policy_arns = [
-        "arn:aws:iam::aws:policy/ReadOnlyAccess"
-      ]
-      custom_policy_attachments = ["developer_readonly"]
+
+      custom_policy_attachments = ["developer_eks_readonly"]
+      managed_policy_arns       = ["arn:aws:iam::aws:policy/ReadOnlyAccess"]
+
       tags = {
-        Role = "Developer"
+        Role   = "Developer"
+        Scope  = "EKS"
         Access = "ReadOnly"
-        Scope = "Global"
       }
     }
   }

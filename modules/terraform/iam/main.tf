@@ -106,3 +106,81 @@ resource "aws_iam_role_policy" "inline" {
   role   = aws_iam_role.this[each.value.role_key].id
   policy = each.value.policy_document
 }
+
+# IAM Users
+resource "aws_iam_user" "this" {
+  for_each = var.users
+
+  name = "${var.name_prefix}${each.value.name_suffix}"
+  path = each.value.path
+
+  tags = merge(local.common_tags, each.value.tags, {
+    Name = "${var.name_prefix}${each.value.name_suffix}"
+  })
+}
+
+# IAM User Policies (AWS Managed)
+resource "aws_iam_user_policy_attachment" "managed" {
+  for_each = {
+    for combo in flatten([
+      for user_key, user in var.users : [
+        for policy_arn in user.managed_policy_arns : {
+          user_key   = user_key
+          policy_arn = policy_arn
+          key        = "${user_key}-${replace(policy_arn, "/[^a-zA-Z0-9]/", "-")}"
+        }
+      ]
+    ]) : combo.key => combo
+  }
+
+  user       = aws_iam_user.this[each.value.user_key].name
+  policy_arn = each.value.policy_arn
+}
+
+# IAM User Custom Policy Attachments
+resource "aws_iam_user_policy_attachment" "custom" {
+  for_each = {
+    for combo in flatten([
+      for user_key, user in var.users : [
+        for policy_key in user.custom_policy_attachments : {
+          user_key   = user_key
+          policy_key = policy_key
+          key        = "${user_key}-${policy_key}"
+        }
+      ]
+    ]) : combo.key => combo
+  }
+
+  user       = aws_iam_user.this[each.value.user_key].name
+  policy_arn = aws_iam_policy.this[each.value.policy_key].arn
+}
+
+# IAM User Inline Policies
+resource "aws_iam_user_policy" "inline" {
+  for_each = {
+    for combo in flatten([
+      for user_key, user in var.users : [
+        for policy_name, policy_document in user.inline_policies : {
+          user_key        = user_key
+          policy_name     = policy_name
+          policy_document = policy_document
+          key             = "${user_key}-${policy_name}"
+        }
+      ]
+    ]) : combo.key => combo
+  }
+
+  name   = each.value.policy_name
+  user   = aws_iam_user.this[each.value.user_key].name
+  policy = each.value.policy_document
+}
+
+# IAM Access Keys (optional)
+resource "aws_iam_access_key" "this" {
+  for_each = {
+    for user_key, user in var.users : user_key => user
+    if user.create_access_key
+  }
+
+  user = aws_iam_user.this[each.key].name
+}

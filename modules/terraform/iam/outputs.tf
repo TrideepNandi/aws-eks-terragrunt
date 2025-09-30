@@ -29,3 +29,25 @@ output "oidc_providers" {
     }
   }
 }
+
+output "users" {
+  description = "Map of created IAM users"
+  value = {
+    for k, v in aws_iam_user.this : k => {
+      arn  = v.arn
+      name = v.name
+      id   = v.id
+    }
+  }
+}
+
+output "access_keys" {
+  description = "Map of created access keys (sensitive)"
+  value = {
+    for k, v in aws_iam_access_key.this : k => {
+      id     = v.id
+      secret = v.secret
+    }
+  }
+  sensitive = true
+}
