@@ -1,11 +1,11 @@
 # Kubernetes Cluster Access Guide
 
-This guide provides step-by-step instructions for accessing your EKS clusters after deployment.
+This guide provides step-by-step instructions for accessing your EKS clusters after deployment using Terramate and Terragrunt.
 
 ## 🎯 Overview
 
 Your infrastructure includes 4 EKS clusters across 3 regions:
-- **us-west-2**: Application cluster (name varies based on configuration)
+- **us-west-2**: Application cluster
 - **us-east-1**: Application cluster + Management cluster
 - **eu-west-1**: Application cluster
 
@@ -21,43 +21,24 @@ aws eks list-clusters --region eu-west-1
 Before accessing clusters, ensure you have:
 1. ✅ **AWS CLI** installed and configured
 2. ✅ **kubectl** installed
-3. ✅ **IAM users and roles** deployed
-4. ✅ **EKS clusters** deployed with access entries
-5. ✅ **AWS profiles** configured
+3. ✅ **Terramate CLI** installed
+4. ✅ **Terragrunt** installed
+5. ✅ **IAM users and roles** deployed
+6. ✅ **EKS clusters** deployed with access entries
+7. ✅ **AWS profiles** configured
 
 ## 🚀 Step-by-Step Access Guide
 
 ### **Step 1: Deploy Infrastructure**
 
-```bash
-# 1. Deploy IAM users and roles
-./script.sh deploy iam
+Follow the deployment order from the [Deployment Guide](deployment-guide.md):
 
-# 2. Deploy EKS clusters (this will take 15-20 minutes)
-./script.sh deploy eks
-
-# 3. Verify deployment
-./script.sh validate all
-```
-
-### **Step 2: Setup AWS Profiles**
+### **Step 2: Get IAM User Access Keys**
 
 ```bash
-# Run the AWS profile setup script
-./setup-aws-profiles.sh
-
-# Follow the prompts to enter:
-# - AWS Account ID
-# - DevOps user access keys
-# - Developer user access keys
-```
-
-### **Step 3: Get IAM User Access Keys**
-
-```bash
-# Get the access keys from Terraform output
-cd iam/
-terragrunt output access_keys
+# Get the access keys from Terragrunt output
+cd iam/users/
+terramate run -- terragrunt output access_keys
 
 # Example output:
 # {
@@ -72,9 +53,9 @@ terragrunt output access_keys
 # }
 ```
 
-### **Step 4: Configure AWS Profiles Manually (Alternative)**
+### **Step 3: Configure AWS Profiles**
 
-If you prefer manual setup, add these to your `~/.aws/credentials`:
+Add these to your `~/.aws/credentials`:
 
 ```ini
 [eks-devops-user]
@@ -102,10 +83,18 @@ source_profile = eks-developer-user
 external_id = developer-access
 ```
 
-### **Step 5: Test AWS Access**
+**Note**: Replace `YOUR_ACCOUNT_ID` with your actual AWS account ID from `account.hcl`.
+
+### **Step 4: Assume IAM Roles**
+
+After configuring your AWS profiles, you need to assume the appropriate IAM role for cluster access.
+
+#### **Option A: Using AWS Profile (Automatic Role Assumption)**
+
+The AWS CLI will automatically assume the role when you set the profile:
 
 ```bash
-# Test DevOps access
+# For DevOps (full admin access)
 export AWS_PROFILE=eks-devops
 aws sts get-caller-identity
 
@@ -116,9 +105,75 @@ aws sts get-caller-identity
 #     "Arn": "arn:aws:sts::YOUR_ACCOUNT_ID:assumed-role/eks-global-devops-role/botocore-session-..."
 # }
 
-# Test Developer access
+# For Developer (read-only access)
 export AWS_PROFILE=eks-developer
 aws sts get-caller-identity
+
+# Expected output:
+# {
+#     "UserId": "AROA...:botocore-session-...",
+#     "Account": "YOUR_ACCOUNT_ID",
+#     "Arn": "arn:aws:sts::YOUR_ACCOUNT_ID:assumed-role/eks-global-developer-role/botocore-session-..."
+# }
+```
+
+#### **Option B: Manual Role Assumption (Advanced)**
+If you need to manually assume roles or troubleshoot:
+
+```bash
+# Assume DevOps role manually
+aws sts assume-role \
+  --role-arn arn:aws:iam::YOUR_ACCOUNT_ID:role/eks-global-devops-role \
+  --role-session-name devops-session
+
+# This returns temporary credentials that you can export:
+# {
+#     "Credentials": {
+#         "AccessKeyId": "ASIA...",
+#         "SecretAccessKey": "...",
+#         "SessionToken": "...",
+#         "Expiration": "2025-10-02T12:00:00Z"
+#     }
+# }
+
+# Export the temporary credentials (replace with actual values from output)
+export AWS_ACCESS_KEY_ID="ASIA..."
+export AWS_SECRET_ACCESS_KEY="..."
+export AWS_SESSION_TOKEN="..."
+
+# Verify role assumption
+aws sts get-caller-identity
+```
+
+```bash
+# Assume Developer role manually
+aws sts assume-role \
+  --role-arn arn:aws:iam::YOUR_ACCOUNT_ID:role/eks-global-developer-role \
+  --role-session-name developer-session 
+
+# Export the credentials as shown above
+```
+
+**Note**: Option A (using profiles) is recommended as it handles role assumption automatically and refreshes credentials when they expire.
+
+### **Step 5: Get Cluster Names from Terragrunt Outputs**
+
+```bash
+# Get US-West-2 cluster name
+cd us-west-2/app-cluster/k8s/
+terramate run -- terragrunt output cluster_name
+
+# Get US-East-1 application cluster name
+cd us-east-1/app-cluster/k8s/
+terramate run -- terragrunt output cluster_name
+
+# Get US-East-1 management cluster name
+cd us-east-1/management-cluster/k8s/
+terramate run -- terragrunt output cluster_name
+
+# Get EU-West-1 cluster name
+cd eu-west-1/app-cluster/k8s/
+terramate run -- terragrunt output cluster_name
 ```
 
 ### **Step 6: Update Kubeconfig for Each Cluster**
@@ -127,12 +182,7 @@ aws sts get-caller-identity
 # Set DevOps profile for admin access
 export AWS_PROFILE=eks-devops
 
-# First, list your actual cluster names
-aws eks list-clusters --region us-west-2
-aws eks list-clusters --region us-east-1
-aws eks list-clusters --region eu-west-1
-
-# Update kubeconfig for each cluster (replace with your actual cluster names)
+# Update kubeconfig for each cluster (replace with your actual cluster names from Step 5)
 # US West 2 - Application Cluster
 aws eks update-kubeconfig --region us-west-2 --name <YOUR_USW2_CLUSTER_NAME> --alias usw2-app
 
@@ -154,12 +204,12 @@ kubectl config get-contexts
 
 # Expected output:
 # CURRENT   NAME        CLUSTER                                                     AUTHINFO                                                    NAMESPACE
-#           app1-use1   arn:aws:eks:us-east-1:ACCOUNT:cluster/app1-use1-1         arn:aws:eks:us-east-1:ACCOUNT:cluster/app1-use1-1         
-#           app2-usw2   arn:aws:eks:us-west-2:ACCOUNT:cluster/app2-usw2-2         arn:aws:eks:us-west-2:ACCOUNT:cluster/app2-usw2-2         
-#           app3-euw1   arn:aws:eks:eu-west-1:ACCOUNT:cluster/app3-euw1-1         arn:aws:eks:eu-west-1:ACCOUNT:cluster/app3-euw1-1         
-#           mgmt-use1   arn:aws:eks:us-east-1:ACCOUNT:cluster/mgmt-use1-1         arn:aws:eks:us-east-1:ACCOUNT:cluster/mgmt-use1-1         
+#           usw2-app    arn:aws:eks:us-west-2:ACCOUNT:cluster/app2-usw2-1          arn:aws:eks:us-west-2:ACCOUNT:cluster/app2-usw2-1         
+#           use1-app    arn:aws:eks:us-east-1:ACCOUNT:cluster/app1-use1-1          arn:aws:eks:us-east-1:ACCOUNT:cluster/app1-use1-1         
+#           use1-mgmt   arn:aws:eks:us-east-1:ACCOUNT:cluster/mgmt-use1-1          arn:aws:eks:us-east-1:ACCOUNT:cluster/mgmt-use1-1         
+#           euw1-app    arn:aws:eks:eu-west-1:ACCOUNT:cluster/app3-euw1-1          arn:aws:eks:eu-west-1:ACCOUNT:cluster/app3-euw1-1         
 
-# Test access to each cluster (use your actual aliases)
+# Test access to each cluster
 kubectl config use-context usw2-app
 kubectl get nodes
 
@@ -178,7 +228,7 @@ kubectl get nodes
 ### **US West 2 - Application Cluster**
 
 ```bash
-# Switch to this cluster (use your actual context name)
+# Switch to this cluster
 kubectl config use-context usw2-app
 
 # Basic cluster info
@@ -198,7 +248,7 @@ kubectl get pods -n kube-system
 ### **US East 1 - Application Cluster**
 
 ```bash
-# Switch to this cluster (use your actual context name)
+# Switch to this cluster
 kubectl config use-context use1-app
 
 # Basic cluster info
@@ -213,7 +263,7 @@ kubectl get services --all-namespaces
 ### **US East 1 - Management Cluster**
 
 ```bash
-# Switch to this cluster (use your actual context name)
+# Switch to this cluster
 kubectl config use-context use1-mgmt
 
 # Management tools (these might not be installed yet)
@@ -223,13 +273,13 @@ kubectl get pods -n argocd
 
 # Check for platform tools
 kubectl get namespaces
-kubectl get pods --all-namespaces | grep -E "(prometheus|grafana|argocd|vault)"
+kubectl get pods --all-namespaces 
 ```
 
 ### **EU West 1 - Application Cluster**
 
 ```bash
-# Switch to this cluster (use your actual context name)
+# Switch to this cluster
 kubectl config use-context euw1-app
 
 # Basic cluster info
@@ -243,13 +293,21 @@ kubectl get nodes --show-labels | grep topology.kubernetes.io/zone
 ## 🔐 Access Levels
 
 ### **DevOps Profile (eks-devops)**
+- **Role**: `eks-global-devops-role`
 - **Full admin access** to all clusters
 - Can create, modify, delete resources
 - Can access all namespaces
 - Can manage cluster configuration
 
 ```bash
+# Assume DevOps role
 export AWS_PROFILE=eks-devops
+
+# Verify role assumption
+aws sts get-caller-identity
+# Should show: arn:aws:sts::ACCOUNT:assumed-role/eks-global-devops-role/...
+
+# Switch to a cluster
 kubectl config use-context usw2-app
 
 # Admin operations
@@ -257,15 +315,25 @@ kubectl create namespace test
 kubectl delete namespace test
 kubectl get secrets --all-namespaces
 kubectl logs -n kube-system deployment/coredns
+kubectl apply -f deployment.yaml
+kubectl scale deployment my-app --replicas=5
 ```
 
 ### **Developer Profile (eks-developer)**
+- **Role**: `eks-global-developer-role`
 - **Read-only access** to all clusters
 - Can view resources but not modify
 - Good for debugging and monitoring
 
 ```bash
+# Assume Developer role
 export AWS_PROFILE=eks-developer
+
+# Verify role assumption
+aws sts get-caller-identity
+# Should show: arn:aws:sts::ACCOUNT:assumed-role/eks-global-developer-role/...
+
+# Switch to a cluster
 kubectl config use-context usw2-app
 
 # Read-only operations
@@ -273,10 +341,34 @@ kubectl get pods --all-namespaces
 kubectl describe node
 kubectl logs deployment/my-app
 kubectl get events --all-namespaces
+kubectl top nodes
+kubectl get services --all-namespaces
 
 # These will fail (no permissions)
 kubectl create namespace test  # ❌ Forbidden
 kubectl delete pod my-pod      # ❌ Forbidden
+kubectl apply -f deployment.yaml  # ❌ Forbidden
+kubectl scale deployment my-app --replicas=5  # ❌ Forbidden
+```
+
+### **Switching Between Roles**
+
+```bash
+# Switch to DevOps role
+export AWS_PROFILE=eks-devops
+aws sts get-caller-identity
+
+# Do admin work...
+kubectl create namespace production
+kubectl apply -f manifests/
+
+# Switch to Developer role for read-only access
+export AWS_PROFILE=eks-developer
+aws sts get-caller-identity
+
+# View resources only...
+kubectl get pods -n production
+kubectl logs -f deployment/my-app -n production
 ```
 
 ## 🛠️ Useful Commands
@@ -303,7 +395,7 @@ kubectl logs -f POD_NAME -n NAMESPACE
 ### **Context Switching**
 
 ```bash
-# Quick context switching (use your actual context names)
+# Quick context switching
 kubectl config use-context usw2-app   # US West 2
 kubectl config use-context use1-app   # US East 1 App
 kubectl config use-context use1-mgmt  # US East 1 Management
@@ -312,7 +404,7 @@ kubectl config use-context euw1-app   # EU West 1
 # Current context
 kubectl config current-context
 
-# Rename contexts for easier use (replace with your actual cluster names)
+# Rename contexts for easier use (if needed)
 kubectl config rename-context arn:aws:eks:us-west-2:ACCOUNT:cluster/YOUR_CLUSTER_NAME usw2-app
 kubectl config rename-context arn:aws:eks:us-east-1:ACCOUNT:cluster/YOUR_APP_CLUSTER_NAME use1-app
 kubectl config rename-context arn:aws:eks:us-east-1:ACCOUNT:cluster/YOUR_MGMT_CLUSTER_NAME use1-mgmt
@@ -360,11 +452,25 @@ kubectl get networkpolicies --all-namespaces
 
 3. **"AccessDenied" errors**
    ```bash
-   # Verify IAM role assumption
+   # Verify you're using the correct profile
+   echo $AWS_PROFILE
+   
+   # Check current assumed role
+   aws sts get-caller-identity
+   
+   # Verify IAM role assumption works
    aws sts assume-role \
-     --role-arn arn:aws:iam::ACCOUNT:role/eks-global-devops-role \
-     --role-session-name test \
-     --external-id devops-access
+     --role-arn arn:aws:iam::YOUR_ACCOUNT_ID:role/eks-global-devops-role \
+     --role-session-name test-session 
+
+   # If this fails, check:
+   # 1. IAM user has permission to assume the role
+   # 2. Role trust policy includes your IAM user ARN
+   # 3. External ID matches the role's external ID requirement
+   
+   # Check role trust policy
+   aws iam get-role --role-name eks-global-devops-role \
+     --query 'Role.AssumeRolePolicyDocument'
    ```
 
 4. **"cluster not found" errors**
@@ -373,6 +479,18 @@ kubectl get networkpolicies --all-namespaces
    aws eks list-clusters --region us-west-2
    aws eks list-clusters --region us-east-1
    aws eks list-clusters --region eu-west-1
+   
+   # Or get from Terragrunt outputs
+   cd us-west-2/app-cluster/k8s/
+   terramate run -- terragrunt output cluster_name
+   ```
+
+5. **Terramate/Terragrunt output issues**
+   ```bash
+   # Refresh outputs
+   cd <cluster-path>/k8s/
+   terramate run -- terragrunt refresh
+   terramate run -- terragrunt output
    ```
 
 ### **Debug Commands**
@@ -385,15 +503,48 @@ kubectl config get-contexts
 # Verify cluster connectivity
 kubectl cluster-info dump
 
-# Check AWS EKS access (use your actual cluster name)
+# Check current AWS identity
+aws sts get-caller-identity
+
+# Verify which role is assumed
+aws sts get-caller-identity --query 'Arn' --output text
+
+# Check AWS EKS access
 aws eks describe-cluster --name YOUR_CLUSTER_NAME --region us-west-2
 aws eks list-access-entries --cluster-name YOUR_CLUSTER_NAME --region us-west-2
+
+# Verify IAM role policies
+aws iam get-role --role-name eks-global-devops-role
+aws iam list-attached-role-policies --role-name eks-global-devops-role
+
+# Test role assumption for DevOps
+aws sts assume-role \
+  --role-arn arn:aws:iam::YOUR_ACCOUNT_ID:role/eks-global-devops-role \
+  --role-session-name debug-session \
+  --duration-seconds 3600
+
+# Test role assumption for Developer
+aws sts assume-role \
+  --role-arn arn:aws:iam::YOUR_ACCOUNT_ID:role/eks-global-developer-role \
+  --role-session-name debug-session \
+  --duration-seconds 3600
+
+# Check role trust relationships
+aws iam get-role --role-name eks-global-devops-role \
+  --query 'Role.AssumeRolePolicyDocument' --output json
+
+aws iam get-role --role-name eks-global-developer-role \
+  --query 'Role.AssumeRolePolicyDocument' --output json
 ```
 
 ## 🎯 Quick Start Checklist
 
-- [ ] Deploy infrastructure: `./script.sh deploy all`
-- [ ] Setup AWS profiles: `./setup-aws-profiles.sh`
+- [ ] Deploy S3 backend: `cd s3-backend/ && terramate run -- terragrunt apply`
+- [ ] Deploy IAM users: `cd iam/users/ && terramate run -- terragrunt apply`
+- [ ] Deploy IAM roles: `cd iam/roles/ && terramate run -- terragrunt apply`
+- [ ] Deploy networking for all regions (see Step 1)
+- [ ] Deploy EKS clusters for all regions (see Step 1)
+- [ ] Configure AWS profiles with IAM user credentials
 - [ ] Test AWS access: `aws sts get-caller-identity`
 - [ ] Update kubeconfig for all clusters
 - [ ] Test cluster access: `kubectl get nodes`
@@ -408,6 +559,8 @@ aws eks list-access-entries --cluster-name YOUR_CLUSTER_NAME --region us-west-2
 5. **Security hardening**: Implement network policies, RBAC, etc.
 
 For more detailed information, see:
-- [EKS Access Guide](eks-access-guide.md)
-- [Deployment Script Guide](deployment-script.md)
+- [Deployment Guide](deployment-guide.md)
+- [State Management Guide](state-management.md)
 - [AWS EKS Documentation](https://docs.aws.amazon.com/eks/)
+- [Terramate Documentation](https://terramate.io/docs)
+- [Terragrunt Documentation](https://terragrunt.gruntwork.io/docs/)

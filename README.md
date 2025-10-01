@@ -41,38 +41,10 @@ This infrastructure provides a scalable, secure, and maintainable foundation for
 ## 📋 **Prerequisites**
 
 ### **Required Tools**
-1. **AWS CLI** (v2.0+)
-   ```bash
-   # Install AWS CLI
-   curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-   unzip awscliv2.zip
-   sudo ./aws/install
-   
-   # Configure AWS credentials
-   aws configure
-   ```
-
-2. **Terraform** (v1.0+)
-   ```bash
-   # Install Terraform
-   wget https://releases.hashicorp.com/terraform/1.6.6/terraform_1.6.6_linux_amd64.zip
-   unzip terraform_1.6.6_linux_amd64.zip
-   sudo mv terraform /usr/local/bin/
-   
-   # Verify installation
-   terraform version
-   ```
-
-3. **Terragrunt** (v0.50+)
-   ```bash
-   # Install Terragrunt
-   wget https://github.com/gruntwork-io/terragrunt/releases/download/v0.54.8/terragrunt_linux_amd64
-   chmod +x terragrunt_linux_amd64
-   sudo mv terragrunt_linux_amd64 /usr/local/bin/terragrunt
-   
-   # Verify installation
-   terragrunt version
-   ```
+1. **AWS CLI** 
+2. **Terraform** 
+3. **Terragrunt**
+4. Terramate 
 
 ### **AWS Requirements**
 - Valid AWS account with appropriate permissions
@@ -84,37 +56,97 @@ This infrastructure provides a scalable, secure, and maintainable foundation for
 ### **1. Clone and Configure**
 ```bash
 # Clone the repository
-git clone <repository-url>
-cd multi-region-eks-infrastructure
+git clone https://github.com/shashwat0309/aws-eks-terragrunt.git
+# or
+git clone git@github.com:shashwat0309/aws-eks-terragrunt.git
+cd aws-eks-terragrunt
 
 # Update account configuration
 vim account.hcl
-# Replace 123456789012 with your AWS account ID
+# Replace 026090515070 with your AWS account ID
 ```
 
 ### **2. Deploy Infrastructure**
 ```bash
 # Deploy US-West-2 region
 cd us-west-2/
-terragrunt run-all plan    # Review changes
-terragrunt run-all apply   # Deploy infrastructure
+terramate run -- terragrunt plan # Review changes
+terramate run -- terragrunt apply --auto-approve # Deploy infrastructure
 
 # Deploy US-East-1 region (includes management cluster)
 cd ../us-east-1/
-terragrunt run-all apply
+terramate run -- terragrunt apply --auto-approve # Deploy infrastructure
 
 # Deploy EU-West-1 region
 cd ../eu-west-1/
-terragrunt run-all apply
+terramate run -- terragrunt apply --auto-approve # Deploy infrastructure
 ```
 
-### **3. Verify Deployment**
+### 3. User
+#### Deploy User and Role
+```bash
+cd iam/
+terramate run -- terragrunt plan # Review changes
+terramate run -- terragrunt apply --auto-approve # Deploy Infrastructure
+
+```
+
+#### Get Access Key and Secret Key
+```bash
+cd iam/
+terramate run -- terragrunt output access_keys
+# or 
+terramate run -- terragrunt outputs 
+```
+
+ - Copy the access key and the secret key from the output of the above command and keep it somewhere
+
+#### Configure AWS credentials
+- Add a new profile to the aws credentials file (~/.aws/credentials)
+
+```bash
+vim ~/.aws/credentials
+```
+
+- Update the configuration by appending this to the credentials file
+```bash
+[eks-devops]
+aws_access_key_id =  <access-key> # Replace from the output of the show outputs command
+aws_secret_access_key = <secret-key> # Replace from the output of the show outputs command
+```
+
+#### Set AWS profile in your shell
+```bash
+export AWS_PROFILE=eks-devops
+```
+
+#### Assume the IAM Role
+
+Use the `sts-assume` role to get temporary credentials:
+
+```bash
+aws sts assume-role --role-arn <role-arn> --role-session-name eks-session
+```
+
+Then export the credentials returned in the JSON output:
+```bash
+export AWS_ACCESS_KEY_ID=<Assumed-Access-Key-ID>
+export AWS_SECRET_ACCESS_KEY=<Assumed-Secret-Key-ID>
+export AWS_SESSION_TOKEN=<Assumed-Session-Token>
+```
+
+#### Update the Kubeconfig for the EKS Cluster
+```bash
+aws eks update-kubeconfig --region <region> --name <eks-cluster-name>
+```
+
+### **4. Verify Deployment**
 ```bash
 # Update kubeconfig for cluster access
-aws eks update-kubeconfig --region us-west-2 --name app2-usw2-1
-aws eks update-kubeconfig --region us-east-1 --name app1-use1-1
-aws eks update-kubeconfig --region us-east-1 --name mgmt-use1-1
-aws eks update-kubeconfig --region eu-west-1 --name app3-euw1-1
+aws eks update-kubeconfig --region us-west-2 --name <cluster-name>
+aws eks update-kubeconfig --region us-east-1 --name <cluster-name>
+aws eks update-kubeconfig --region us-east-1 --name <cluster-name>
+aws eks update-kubeconfig --region eu-west-1 --name <cluster-name>
 
 # Verify cluster access
 kubectl get nodes
@@ -124,64 +156,126 @@ kubectl get pods --all-namespaces
 ## 📁 **Project Structure**
 
 ```
-├── README.md                           # This file
-├── account.hcl                         # AWS account configuration
-├── terragrunt.hcl                      # Root Terragrunt configuration
-├── docs/                              # Detailed documentation
-│   ├── state-management.md            # State file organization
-│   └── deployment-guide.md            # Comprehensive deployment guide
-├── modules/terraform/                 # Reusable Terraform modules
-│   ├── iam-roles/                     # Generic IAM roles module
-│   │   ├── README.md                  # Module documentation
-│   │   ├── main.tf                    # Module implementation
-│   │   ├── variables.tf               # Input variables
-│   │   ├── outputs.tf                 # Output values
-│   │   └── versions.tf                # Provider requirements
-│   ├── eks/                           # EKS cluster module
-│   │   └── README.md                  # EKS module documentation
-│   └── vpc/                           # VPC networking module
-│       └── README.md                  # VPC module documentation
-├── us-west-2/                         # US West 2 region
-│   ├── region.hcl                     # Region-specific configuration
-│   ├── terragrunt.hcl                 # Regional Terragrunt config
-│   ├── iam-roles/                     # IAM roles for this region
-│   │   ├── terragrunt.hcl
-│   │   └── roles/                     # Individual role definitions
-│   │       ├── devops.hcl             # DevOps role configuration
-│   │       └── developer.hcl          # Developer role configuration
-│   └── app-cluster/                   # Application cluster
-│       ├── networking/                # VPC and networking
-│       │   └── terragrunt.hcl
-│       └── k8s/                       # EKS cluster
-│           └── terragrunt.hcl
-├── us-east-1/                         # US East 1 region
+
+├── README.md                     # Project overview and documentation
+├── account.hcl                   # Global AWS account configuration
+├── context.hcl                   # Global Terragrunt/Terramate context
+├── root.hcl                      # Root configuration
+├── region.hcl                    # Root-level region defaults
+├── script.sh                     # Deployment automation script
+│
+├── docs/                         # Documentation
+│   ├── deployment-guide.md       # Step-by-step deployment guide
+│   ├── deployment-script.md      # Script usage & features
+│   ├── k8s-cluster-access-guide.md # Cluster access setup
+│   └── state-management.md       # Terraform/Terragrunt state management
+│
+├── iam/                          # Central IAM management
+│   ├── backend.tf                # Remote backend config for IAM
+│   ├── terragrunt.hcl            # Root IAM Terragrunt config
+│   ├── stack.tm.hcl              # Terramate stack config (if applicable)
+│   ├── roles/                    # IAM role definitions
+│   │   ├── clusters/             # Cluster-specific IAM roles
+│   │   │   ├── app-cluster
+│   │   │   └── management-cluster
+│   │   ├── common/               # Shared IAM roles
+│   │   │   ├── developer.hcl
+│   │   │   └── devops.hcl
+│   │   ├── stack.tm.hcl
+│   │   └── terragrunt.hcl
+│   └── users/                    # IAM user definitions
+│       ├── eks-users.hcl
+│       ├── stack.tm.hcl
+│       └── terragrunt.hcl
+│
+├── modules/terraform/            # Reusable Terraform modules
+│   ├── eks/                      # EKS cluster module
+│   │   ├── main.tf
+│   │   ├── main_karpenter.tf
+│   │   ├── main_pod_identity.tf
+│   │   ├── locals.tf
+│   │   ├── variables.tf
+│   │   ├── outputs.tf
+│   │   └── README.md
+│   ├── iam/                      # IAM module
+│   │   ├── main.tf
+│   │   ├── variables.tf
+│   │   ├── outputs.tf
+│   │   ├── versions.tf
+│   │   └── README.md
+│   ├── networking/               # Networking (VPC + subnets)
+│   │   ├── main.tf
+│   │   ├── variables.tf
+│   │   ├── outputs.tf
+│   │   └── README.md
+│   ├── s3-backend/               # S3 + DynamoDB backend
+│   │   ├── main.tf
+│   │   ├── locals.tf
+│   │   ├── variables.tf
+│   │   ├── outputs.tf
+│   │   └── README.md
+│   ├── security-groups/          # Security groups
+│   │   └── README.md
+│   └── vpc/                      # Core VPC infrastructure
+│       └── README.md
+│
+├── s3-backend/                   # Remote state backend setup
+│   ├── terragrunt.hcl
+│   ├── stack.tm.hcl
+│   ├── terraform.tfstate
+│   └── terraform.tfstate.backup
+│
+├── us-west-2/                    # US-West-2 region
 │   ├── region.hcl
 │   ├── terragrunt.hcl
-│   ├── iam-roles/                     # IAM roles for app cluster
-│   │   ├── terragrunt.hcl
-│   │   └── roles/                     # Role definitions
-│   ├── app-cluster/                   # Application cluster
-│   │   ├── networking/
-│   │   └── k8s/
-│   └── management-cluster/            # Management cluster
-│       ├── iam/                       # Separate IAM for management
+│   └── app-cluster/              # Application cluster
+│       ├── networking/           # VPC + security groups
+│       │   ├── vpc.hcl
+│       │   ├── security-groups.hcl
 │       │   ├── terragrunt.hcl
-│       │   └── roles/
-│       │       ├── devops.hcl         # DevOps role configuration
-│       │       └── developer.hcl      # Developer role configuration
-│       ├── networking/                # Separate VPC for management
-│       │   └── terragrunt.hcl
-│       └── k8s/                       # Management EKS cluster
-│           └── terragrunt.hcl
-└── eu-west-1/                         # EU West 1 region
+│       │   └── stack.tm.hcl
+│       └── k8s/                  # EKS cluster
+│           ├── terragrunt.hcl
+│           ├── stack.tm.hcl
+│           └── terragrunt.hcl.bak
+│
+├── us-east-1/                    # US-East-1 region
+│   ├── region.hcl
+│   ├── terragrunt.hcl
+│   ├── app-cluster/              # Application cluster
+│   │   ├── networking/
+│   │   │   ├── vpc.hcl
+│   │   │   ├── security-groups.hcl
+│   │   │   ├── terragrunt.hcl
+│   │   │   └── stack.tm.hcl
+│   │   └── k8s/
+│   │       ├── terragrunt.hcl
+│   │       ├── stack.tm.hcl
+│   │       └── terragrunt.hcl.bak
+│   └── management-cluster/       # Management cluster
+│       ├── networking/
+│       │   ├── vpc.hcl
+│       │   ├── security-groups.hcl
+│       │   ├── terragrunt.hcl
+│       │   └── stack.tm.hcl
+│       └── k8s/
+│           ├── terragrunt.hcl
+│           ├── stack.tm.hcl
+│           └── terragrunt.hcl.bak
+│
+└── eu-west-1/                    # EU-West-1 region
     ├── region.hcl
     ├── terragrunt.hcl
-    ├── iam-roles/                     # IAM roles for EU region
-    │   ├── terragrunt.hcl
-    │   └── roles/
-    └── app-cluster/
+    └── app-cluster/              # Application cluster
         ├── networking/
+        │   ├── vpc.hcl
+        │   ├── security-groups.hcl
+        │   ├── terragrunt.hcl
+        │   └── stack.tm.hcl
         └── k8s/
+            ├── terragrunt.hcl
+            ├── stack.tm.hcl
+            └── terragrunt.hcl.bak
 ```
 
 ## 🔧 **Configuration**
@@ -208,24 +302,6 @@ locals {
 }
 ```
 
-## � ***Enhanced Deployment Script**
-
-The project includes an advanced deployment script (`script.sh`) with dependency management, parallel execution, and region filtering capabilities.
-
-### **Quick Deployment with Script**
-```bash
-# Deploy everything with dependency management
-./script.sh deploy all
-
-# Deploy specific region
-./script.sh deploy region --region us-west-2
-
-# Deploy with parallel execution for speed
-./script.sh deploy infra --parallel
-
-# Dry run to preview changes
-./script.sh destroy all --dry-run
-```
 
 ### **Script Features**
 - ✅ **Automatic Dependency Management**: Enforces proper deployment order
@@ -239,57 +315,26 @@ For complete script documentation, see **[Deployment Script Guide](docs/deployme
 
 ## 📋 **Manual Deployment Strategies**
 
-### **Strategy 1: Regional Deployment (Recommended)**
 Deploy entire regions independently for optimal performance and isolation:
 ```bash
+# Deploy IAM user and role first
+cd iam/
+terramate run -- terragrunt apply --auto-approve
+
 # Deploy US-West-2 region
 cd us-west-2/
-terragrunt run-all apply
+terramate run -- terragrunt apply --auto-approve
 
 # Deploy US-East-1 region (includes management cluster)
 cd ../us-east-1/
-terragrunt run-all apply
+terramate run -- terragrunt apply --auto-approve
 
 # Deploy EU-West-1 region
 cd ../eu-west-1/
-terragrunt run-all apply
+terramate run -- terragrunt apply --auto-approve
 ```
 
-### **Strategy 2: Component-Specific Deployment**
-Deploy specific infrastructure components across regions:
-```bash
-# Deploy only IAM roles across all regions
-cd us-west-2/iam-roles/ && terragrunt apply
-cd ../us-east-1/iam-roles/ && terragrunt apply
-cd ../us-east-1/management-cluster/iam/ && terragrunt apply
-cd ../../eu-west-1/iam-roles/ && terragrunt apply
 
-# Deploy specific component in specific region
-cd us-west-2/app-cluster/networking/
-terragrunt apply
-```
-
-### **Strategy 3: Ordered Deployment (Initial Setup)**
-Follow strict dependency order for first-time deployment:
-```bash
-# Phase 1: Deploy all IAM roles
-cd us-west-2/iam-roles/ && terragrunt apply
-cd ../us-east-1/iam-roles/ && terragrunt apply
-cd ../us-east-1/management-cluster/iam/ && terragrunt apply
-cd ../../eu-west-1/iam-roles/ && terragrunt apply
-
-# Phase 2: Deploy all networking
-cd ../us-west-2/app-cluster/networking/ && terragrunt apply
-cd ../../us-east-1/app-cluster/networking/ && terragrunt apply
-cd ../management-cluster/networking/ && terragrunt apply
-cd ../../eu-west-1/app-cluster/networking/ && terragrunt apply
-
-# Phase 3: Deploy all EKS clusters
-cd ../../us-west-2/app-cluster/k8s/ && terragrunt apply
-cd ../../us-east-1/app-cluster/k8s/ && terragrunt apply
-cd ../management-cluster/k8s/ && terragrunt apply
-cd ../../eu-west-1/app-cluster/k8s/ && terragrunt apply
-```
 
 ## 🎉 **What You Get**
 
@@ -301,12 +346,13 @@ cd ../../eu-west-1/app-cluster/k8s/ && terragrunt apply
 - **High Availability**: Multi-AZ deployments with redundancy
 
 ### **Cluster Details**
-| Cluster | Region | Purpose | Node Groups | IAM Integration |
-|---------|--------|---------|-------------|-----------------|
-| app2-usw2-1 | us-west-2 | Applications | Karpenter + Applications | DevOps, Developer |
-| app1-use1-1 | us-east-1 | Applications | Karpenter + Applications | DevOps, Developer |
-| mgmt-use1-1 | us-east-1 | Management | Karpenter + Management + Monitoring | DevOps, Developer |
-| app3-euw1-1 | eu-west-1 | Applications | Karpenter + Applications | DevOps, Developer |
+|  Region | Purpose | Node Groups | IAM Integration |
+|--------|---------|-------------|-----------------|
+|  us-west-2 | Applications | Karpenter + Applications | DevOps, Developer |
+|  us-east-1 | Applications | Karpenter + Applications | DevOps, Developer |
+|  us-east-1 | Management | Karpenter + Management + Monitoring | DevOps, Developer |
+|  eu-west-1 | Applications | Karpenter + Applications | DevOps, Developer |
+
 
 ### **IAM Roles Created**
 - **DevOps Role**: Full administrative access across all clusters and AWS services
@@ -323,7 +369,6 @@ cd ../../eu-west-1/app-cluster/k8s/ && terragrunt apply
 
 ### **Deployment & Operations**
 - **[Deployment Script Guide](docs/deployment-script.md)** - Enhanced deployment script with dependency management and parallel execution
-- **[State Management](docs/state-management.md)** - Dynamic state file organization and backend configuration
 - **[Deployment Guide](docs/deployment-guide.md)** - Comprehensive deployment strategies and troubleshooting
 
 ### **Terraform Modules**

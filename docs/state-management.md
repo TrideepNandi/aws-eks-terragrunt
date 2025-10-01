@@ -8,23 +8,22 @@ This infrastructure implements automated Terraform state management using Terrag
 
 ```
 terraform-state-production-123456789012/
-├── us-west-2/
+├── iam/
+│   ├── roles/terraform.tfstate
+│   └── users/terraform.tfstate
+── us-west-2/
 │   └── app-cluster/
-│       ├── iam/terraform.tfstate
 │       ├── networking/terraform.tfstate
 │       └── k8s/terraform.tfstate
 ├── us-east-1/
 │   ├── app-cluster/
-│   │   ├── iam/terraform.tfstate
 │   │   ├── networking/terraform.tfstate
 │   │   └── k8s/terraform.tfstate
 │   └── management-cluster/
-│       ├── iam/terraform.tfstate
 │       ├── networking/terraform.tfstate
 │       └── k8s/terraform.tfstate
 └── eu-west-1/
     └── app-cluster/
-        ├── iam/terraform.tfstate
         ├── networking/terraform.tfstate
         └── k8s/terraform.tfstate
 ```
@@ -70,7 +69,7 @@ State keys are automatically generated based on directory structure:
 
 | Directory Path | Generated State Key |
 |---|---|
-| `us-west-2/iam-roles/` | `us-west-2/app-cluster/iam/terraform.tfstate` |
+| `us-west-2/iam/` | `us-west-2/app-cluster/iam/terraform.tfstate` |
 | `us-west-2/app-cluster/networking/` | `us-west-2/app-cluster/networking/terraform.tfstate` |
 | `us-east-1/management-cluster/iam/` | `us-east-1/management-cluster/iam/terraform.tfstate` |
 
