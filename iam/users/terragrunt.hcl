@@ -1,5 +1,5 @@
 terraform {
-  source = "../../modules/terraform/iam" # Fixed: was ../modules, should be ../../modules
+  source = "../../modules/terraform/iam"
 }
 
 include "root" {
@@ -22,16 +22,10 @@ locals {
   eks_users    = read_terragrunt_config("${get_terragrunt_dir()}/eks-users.hcl")
 }
 
-# Users are created AFTER roles (but don't need role outputs)
-dependency "roles" {
-  config_path  = "../roles"
-  skip_outputs = true  # We only need roles to exist, not their outputs
-  
-  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan"]
-  mock_outputs = {}
-}
+# NO dependency block here - users don't need roles to be created
 
 inputs = {
   name_prefix = "eks-"
+  account_id  = local.account_id
   users       = local.eks_users.locals.users
 }

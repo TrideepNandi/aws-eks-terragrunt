@@ -4,15 +4,15 @@ locals {
 
   users = {
     eks-developer = {
-      name_suffix        = "developer"
-      create_access_key  = true
+      name_suffix         = "developer"
+      create_access_key   = true
       managed_policy_arns = ["arn:aws:iam::aws:policy/ReadOnlyAccess"]
       inline_policies = {
         assume_developer_role = jsonencode({
           Version = "2012-10-17"
           Statement = [
             {
-              Effect = "Allow"
+              Effect   = "Allow"
               Action   = "sts:AssumeRole"
               Resource = "arn:aws:iam::${local.account_id}:role/eks-global-developer-role"
             }
@@ -23,15 +23,15 @@ locals {
     }
 
     eks-devops = {
-      name_suffix        = "devops"
-      create_access_key  = true
+      name_suffix         = "devops"
+      create_access_key   = true
       managed_policy_arns = ["arn:aws:iam::aws:policy/AdministratorAccess"]
       inline_policies = {
         assume_devops_role = jsonencode({
           Version = "2012-10-17"
           Statement = [
             {
-              Effect = "Allow"
+              Effect   = "Allow"
               Action   = "sts:AssumeRole"
               Resource = "arn:aws:iam::${local.account_id}:role/eks-global-devops-role"
             }

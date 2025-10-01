@@ -64,6 +64,23 @@ dependency "networking" {
   }
 }
 
+# Add dependency on IAM roles and users to ensure they exist before EKS tries to reference them
+dependency "iam_roles" {
+  config_path = "../../../iam/roles"
+  skip_outputs = true
+  
+  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan"]
+  mock_outputs = {}
+}
+
+dependency "iam_users" {
+  config_path = "../../../iam/users"
+  skip_outputs = true
+  
+  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan"]
+  mock_outputs = {}
+}
+
 inputs = {
   context = {
     aws_region       = local.aws_region
@@ -110,7 +127,7 @@ inputs = {
         principal_arn     = "arn:aws:iam::${local.account_vars.locals.account_id}:role/eks-global-developer-role"
         policy_associations = {
           viewer = {
-            policy_arn = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSViewerPolicy"
+            policy_arn = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSViewPolicy"
             access_scope = {
               type = "cluster"
             }
@@ -120,7 +137,7 @@ inputs = {
 
       devops_user = {
         kubernetes_groups = []
-        principal_arn     = "arn:aws:iam::${local.account_vars.locals.account_id}:user/eks-global-devops-user"
+        principal_arn     = "arn:aws:iam::${local.account_vars.locals.account_id}:user/eks-devops"
         policy_associations = {
           admin = {
             policy_arn = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
@@ -133,10 +150,10 @@ inputs = {
 
       developer_user = {
         kubernetes_groups = []
-        principal_arn     = "arn:aws:iam::${local.account_vars.locals.account_id}:user/eks-global-developer-user"
+        principal_arn     = "arn:aws:iam::${local.account_vars.locals.account_id}:user/eks-developer"
         policy_associations = {
           viewer = {
-            policy_arn = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSViewerPolicy"
+            policy_arn = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSViewPolicy"
             access_scope = {
               type = "cluster"
             }

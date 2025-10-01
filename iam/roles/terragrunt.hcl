@@ -1,5 +1,5 @@
 terraform {
-  source = "../../modules/terraform/iam" # Fixed: was ../modules, should be ../../modules
+  source = "../../modules/terraform/iam"
 }
 
 include "root" {
@@ -19,32 +19,22 @@ EOF
 locals {
   devops_role    = read_terragrunt_config("${get_terragrunt_dir()}/common/devops.hcl")
   developer_role = read_terragrunt_config("${get_terragrunt_dir()}/common/developer.hcl")
+  
+  # Get account ID for constructing user ARNs
+  account_vars = read_terragrunt_config(find_in_parent_folders("account.hcl"))
+  account_id   = local.account_vars.locals.account_id
 }
 
-# OPTION 1: Remove this dependency entirely
-# dependency "eks_users" {
-#   config_path = "../users"
-# }
-
-# OPTION 2: Or make it optional with skip_outputs
+# Add dependency back for Terramate to detect, but skip outputs to avoid circular dependency
 dependency "eks_users" {
-  config_path = "../users"  # Fixed: removed get_terragrunt_dir(), use relative path
+  config_path  = "../users"
+  skip_outputs = true  # Don't read outputs, just ensure users are created first
   
-  skip_outputs = false  # We need the outputs
-  
-  # Allow planning without users being deployed yet
+  # Mock outputs for planning
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan"]
   mock_outputs = {
-    users = {
-      "eks-developer" = {
-        name = "eks-developer"
-        arn  = "arn:aws:iam::123456789012:user/eks-developer"
-      }
-      "eks-devops" = {
-        name = "eks-devops"
-        arn  = "arn:aws:iam::123456789012:user/eks-devops"
-      }
-    }
+    eks_admin_role_arn  = "arn:aws:iam::123456789012:role/eks-admin"
+    eks_worker_role_arn = "arn:aws:iam::123456789012:role/eks-worker"
   }
 }
 
@@ -61,9 +51,9 @@ inputs = {
     local.developer_role.locals.roles
   )
 
-  # Attach users created in users module
+  # Construct user ARNs directly instead of using dependency outputs
   user_policy_attachment = {
-    eks-developer = dependency.eks_users.outputs.users["eks-developer"].arn  # Added .arn
-    eks-devops    = dependency.eks_users.outputs.users["eks-devops"].arn     # Added .arn
+    eks-developer = "arn:aws:iam::${local.account_id}:user/eks-developer"
+    eks-devops    = "arn:aws:iam::${local.account_id}:user/eks-devops"
   }
 }
