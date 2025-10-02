@@ -80,10 +80,43 @@ inputs = {
     cluster_version                 = "1.33"
     cluster_endpoint_public_access  = true
     cluster_endpoint_private_access = true
+    authentication_mode             = "API_AND_CONFIG_MAP"
 
     vpc_id                   = dependency.networking.outputs.vpc.vpc_id
     control_plane_subnet_ids = dependency.networking.outputs.vpc.private_subnets
     subnet_ids               = dependency.networking.outputs.vpc.private_subnets
+
+    # Disable automatic cluster creator permissions (we define explicit access entries)
+    enable_cluster_creator_admin_permissions = false
+
+    # Access entries for IAM users and roles
+    access_entries = {
+      devops_role = {
+        kubernetes_groups = []
+        principal_arn     = "arn:aws:iam::${local.account_vars.locals.account_id}:role/eks-global-devops-role"
+        policy_associations = {
+          admin = {
+            policy_arn = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
+            access_scope = {
+              type = "cluster"
+            }
+          }
+        }
+      }
+      
+      developer_role = {
+        kubernetes_groups = []
+        principal_arn     = "arn:aws:iam::${local.account_vars.locals.account_id}:role/eks-global-developer-role"
+        policy_associations = {
+          viewer = {
+            policy_arn = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSViewerPolicy"
+            access_scope = {
+              type = "cluster"
+            }
+          }
+        }
+      }
+    }
 
     cluster_addons = {
       eks-pod-identity-agent = {

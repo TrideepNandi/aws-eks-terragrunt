@@ -12,15 +12,23 @@ locals {
   aws_region   = local.region_vars.locals.aws_region
 
   # Generate dynamic state key based on directory structure
-  path_parts = split("/", path_relative_to_include())
+  relative_path = path_relative_to_include()
+  path_parts    = split("/", local.relative_path)
+
+  # Safely check if we're in the special iam-roles case
+  is_iam_roles_case = (
+    length(local.path_parts) >= 2 && 
+    try(local.path_parts[1], "") == "iam-roles"
+  )
 
   # Create a clean state key based on the directory structure
-  # Examples:
-  # us-west-2/iam-roles/ -> us-west-2/app-cluster/iam/terraform.tfstate
-  # us-west-2/app-cluster/networking/ -> us-west-2/app-cluster/networking/terraform.tfstate
-  # us-east-1/management-cluster/iam/ -> us-east-1/management-cluster/iam/terraform.tfstate
-
-  state_key = length(local.path_parts) == 2 && local.path_parts[1] == "iam-roles" ? "${local.path_parts[0]}/app-cluster/iam/terraform.tfstate" : "${path_relative_to_include()}/terraform.tfstate"
+  state_key = local.is_iam_roles_case ? (
+    "${local.path_parts[0]}/app-cluster/iam/terraform.tfstate"
+  ) : (
+    local.relative_path != "" && local.relative_path != "." ? 
+    "${local.relative_path}/terraform.tfstate" : 
+    "terraform.tfstate"
+  )
 }
 
 # Configure Terragrunt to automatically create the S3 bucket and DynamoDB table for remote state storage
@@ -40,16 +48,12 @@ remote_state {
     key = local.state_key
 
     # Region where the S3 bucket should be created
-    region = "us-east-1"  # Keep backend in one region for consistency
+    region = "us-east-1"
 
     # Enable encryption
     encrypt = true
-
-    # Additional S3 settings (these are handled by the S3 bucket resource, not the backend)
   }
 }
-
-# Provider configuration will be handled per module
 
 # Input variables that will be available to all child configurations
 inputs = {

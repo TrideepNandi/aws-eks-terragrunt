@@ -45,6 +45,10 @@ provider "aws" {
 EOF
 }
 
+dependency "s3_backend" {
+  config_path = "../../../s3-backend"
+}
+
 dependency "networking" {
   config_path = "../networking"
   

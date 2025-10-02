@@ -12,15 +12,15 @@ Deploy entire regions independently for better performance and isolation.
 ```bash
 # Deploy US-West-2 region
 cd us-west-2/
-terragrunt run-all apply
+terramate run -- terragrunt apply --auto-approve
 
 # Deploy US-East-1 region (includes management cluster)
 cd us-east-1/
-terragrunt run-all apply
+terramate run -- terragrunt apply --auto-approve
 
 # Deploy EU-West-1 region
 cd eu-west-1/
-terragrunt run-all apply
+terramate run -- terragrunt apply --auto-approve
 ```
 
 ### **Strategy 2: Component-Specific Deployment**
@@ -28,32 +28,15 @@ Deploy specific components when you need granular control.
 
 ```bash
 # Deploy only IAM roles across all regions
-cd us-west-2/iam-roles/ && terragrunt apply
-cd us-east-1/iam-roles/ && terragrunt apply
-cd us-east-1/management-cluster/iam/ && terragrunt apply
-cd eu-west-1/iam-roles/ && terragrunt apply
+cd iam && terramate run -- terragrunt apply --auto-approve
 
 # Deploy only networking components
-cd us-west-2/app-cluster/networking/ && terragrunt apply
-cd us-east-1/app-cluster/networking/ && terragrunt apply
-cd us-east-1/management-cluster/networking/ && terragrunt apply
-cd eu-west-1/app-cluster/networking/ && terragrunt apply
+cd us-west-2/app-cluster/networking/ && terramate run -- terragrunt japply --auto-approve
+cd us-east-1/app-cluster/networking/ && terramate run -- terragrunt apply --auto-approve
+cd us-east-1/management-cluster/networking/ && terramate run -- terragrunt apply --auto-approve
+cd eu-west-1/app-cluster/networking/ && terramate run -- terragrunt japply --auto-approve
 ```
 
-### **Strategy 3: Parallel Regional Deployment**
-Deploy multiple regions simultaneously for faster deployment.
-
-```bash
-# Open multiple terminals and run in parallel
-# Terminal 1:
-cd us-west-2/ && terragrunt run-all apply
-
-# Terminal 2:
-cd us-east-1/ && terragrunt run-all apply
-
-# Terminal 3:
-cd eu-west-1/ && terragrunt run-all apply
-```
 
 ## 📋 **Deployment Order**
 
@@ -73,28 +56,25 @@ vim account.hcl
 aws sts get-caller-identity
 ```
 
-#### **2. Deploy IAM (All Regions)**
+#### **2. Deploy IAM**
 ```bash
-cd us-west-2/iam-roles/ && terragrunt apply && cd ../..
-cd us-east-1/iam-roles/ && terragrunt apply && cd ../..
-cd us-east-1/management-cluster/iam/ && terragrunt apply && cd ../../..
-cd eu-west-1/iam-roles/ && terragrunt apply && cd ../..
+cd iam/ && terramate run -- terragrunt apply --auto-approve
 ```
 
 #### **3. Deploy Networking (All Regions)**
 ```bash
-cd us-west-2/app-cluster/networking/ && terragrunt apply && cd ../../..
-cd us-east-1/app-cluster/networking/ && terragrunt apply && cd ../../..
-cd us-east-1/management-cluster/networking/ && terragrunt apply && cd ../../..
-cd eu-west-1/app-cluster/networking/ && terragrunt apply && cd ../../..
+cd us-west-2/app-cluster/networking/ && terramate run -- terragrunt apply --auto-approve
+cd us-east-1/app-cluster/networking/ && terramate run -- terragrunt apply --auto-approve
+cd us-east-1/management-cluster/networking/ && terramate run -- terragrunt apply --auto-approve
+cd eu-west-1/app-cluster/networking/ && terramate run -- terragrunt apply --auto-approve
 ```
 
 #### **4. Deploy EKS (All Regions)**
 ```bash
-cd us-west-2/app-cluster/k8s/ && terragrunt apply && cd ../../..
-cd us-east-1/app-cluster/k8s/ && terragrunt apply && cd ../../..
-cd us-east-1/management-cluster/k8s/ && terragrunt apply && cd ../../..
-cd eu-west-1/app-cluster/k8s/ && terragrunt apply && cd ../../..
+cd us-west-2/app-cluster/k8s/ && terramate run -- terragrunt apply --auto-approve
+cd us-east-1/app-cluster/k8s/ && terramate run -- terragrunt apply --auto-approve
+cd us-east-1/management-cluster/k8s/ && terramate run -- terragrunt apply --auto-approve
+cd eu-west-1/app-cluster/k8s/ && terramate run -- terragrunt apply --auto-approve
 ```
 
 ## 🔐 **IAM Roles Management**
@@ -115,12 +95,11 @@ Each region deploys three types of IAM roles with specific permissions:
 - **Restrictions**: Cannot modify cluster configuration or infrastructure
 
 
-
 ### **IAM Deployment Verification**
 ```bash
 # Verify IAM roles are created
-cd us-west-2/iam-roles/
-terragrunt output
+cd us-west-2/iam/
+terramate run -- terragrunt output access_keys
 
 # Check role trust relationships
 aws iam get-role --role-name eks-usw2-devops-role
@@ -148,35 +127,22 @@ Each region can be managed independently:
 ### **US-West-2 (App Cluster)**
 ```bash
 cd us-west-2/
-terragrunt run-all plan    # Review changes
-terragrunt run-all apply   # Deploy all components
+terramate run -- terragrunt run plan    # Review changes
+terramate run -- terragrunt run-all apply   # Deploy all components
 ```
 
 ### **US-East-1 (App + Management)**
 ```bash
 cd us-east-1/
-terragrunt run-all apply   # Deploys both app and management clusters
+terramate run -- terragrunt run plan    # Review changes
+terramate run -- terragrunt run-all apply   # Deploy all components
 ```
 
 ### **EU-West-1 (App Cluster)**
 ```bash
 cd eu-west-1/
-terragrunt run-all apply   # Deploy EU region
-```
-
-## 🔧 **Advanced Deployment Techniques**
-
-### **Selective Component Deployment**
-Deploy specific components across multiple regions:
-
-```bash
-# Deploy all IAM components
-for region in us-west-2 us-east-1 eu-west-1; do
-  cd $region/iam-roles/ && terragrunt apply && cd ../..
-done
-
-# Deploy management cluster IAM separately
-cd us-east-1/management-cluster/iam/ && terragrunt apply
+terramate run -- terragrunt run plan    # Review changes
+terramate run -- terragrunt run-all apply   # Deploy all components
 ```
 
 ### **Update OIDC Provider IDs**
@@ -191,91 +157,70 @@ aws eks describe-cluster --name app2-usw2-1 --region us-west-2 \
 # Example: Custom application roles with OIDC integration
 ```
 
+
+---
 ## 🛠️ **Troubleshooting**
 
 ### **Common Issues**
 
-1. **State Lock**: If deployment fails, check for state locks
-   ```bash
-   terragrunt force-unlock <lock-id>
-   ```
+1. **State Lock**
+   If deployment fails and Terraform state is locked:
 
-2. **Dependencies**: Ensure IAM is deployed before EKS
-   ```bash
-   # Check dependency outputs
-   cd us-west-2/iam-roles/
-   terragrunt output
-   ```
+```bash
+# Unlock the state in the affected stack
+cd us-west-2/iam/
+terramate run -- terragrunt force-unlock <lock-id>
+```
 
-3. **OIDC Issues**: Update OIDC IDs after cluster creation
-   ```bash
-   ./update-oidc-ids.sh
-   ```
+2. **Dependencies Not Resolved**
+   Terramate ensures stacks are deployed in the correct order (`IAM → Networking → EKS`).
+   If you suspect dependency outputs are missing:
+
+```bash
+# Refresh outputs for IAM
+cd iam/
+terramate run -- terragrunt output
+
+# Re-run with Terramate to force dependency resolution
+terramate run -- terragrunt plan
+```
+
+3. **OIDC Issues**
+   If IRSA roles fail due to missing/incorrect OIDC provider IDs:
+
+```bash
+# Get OIDC issuer ID
+aws eks describe-cluster --name app2-usw2-1 --region us-west-2 \
+  --query 'cluster.identity.oidc.issuer' --output text
+
+# Update IAM configs with the correct issuer
+vim iam/roles/<your-irsa-role>.hcl
+
+# Re-apply IAM stack
+cd iam/ && terramate run -- terragrunt apply --auto-approve
+```
+
+4. **Terramate CLI Errors**
+   If you see `stack not found` or `no stack matches path`:
+
+* Ensure you are running inside a **stack directory** (`iam/`, `networking/`, `k8s/`, etc.)
+* Use `terramate list` to confirm available stacks
+* Use `terramate run -- terragrunt plan` to check stack execution
+
+---
 
 ### **Validation**
-```bash
-# Validate configuration
-cd us-west-2/iam-roles/
-terragrunt validate
 
-# Plan before apply
-terragrunt plan
+```bash
+# Validate IAM stack
+cd iam/
+terramate run -- terragrunt validate
+
+# Validate networking or EKS
+cd us-west-2/app-cluster/k8s/
+terramate run -- terragrunt validate
+
+# Dry-run changes
+terramate run -- terragrunt plan
 ```
 
-## 🎉 **Post-Deployment**
-
-After successful deployment:
-
-1. **Update kubeconfig**
-   ```bash
-   aws eks update-kubeconfig --region us-west-2 --name app2-usw2-1
-   ```
-
-2. **Verify cluster access**
-   ```bash
-   kubectl get nodes
-   ```
-
-3. **Deploy applications** using kubectl or your preferred deployment method
-
-## 📊 **Performance Tips**
-
-- **Regional Deployment**: Use regional commands for faster execution
-- **Parallel Deployment**: Deploy multiple regions in parallel
-- **Component Focus**: Deploy only changed components
-- **State Isolation**: Each component has separate state for faster operations
-- **Dependency Caching**: Terragrunt caches dependency outputs for faster subsequent runs
-- **Module Caching**: Terraform modules are cached locally to speed up initialization
-
-## 🔄 **Maintenance and Updates**
-
-### **Regular Maintenance Tasks**
-```bash
-# Update Terraform modules
-terragrunt init -upgrade
-
-# Check for configuration drift
-terragrunt plan --detailed-exitcode
-
-# Update EKS cluster versions
-# Edit cluster_version in terragrunt.hcl files, then:
-terragrunt apply
-
-# Rotate IAM access keys (if using)
-aws iam update-access-key --access-key-id <key-id> --status Inactive
-```
-
-### **Monitoring Deployment Health**
-```bash
-# Check EKS cluster status
-aws eks describe-cluster --name <cluster-name> --region <region>
-
-# Verify node groups
-aws eks describe-nodegroup --cluster-name <cluster-name> --nodegroup-name <nodegroup-name>
-
-# Monitor Karpenter nodes
-kubectl get nodes -l karpenter.sh/provisioner-name
-
-# Check IAM role trust relationships
-aws iam get-role --role-name <role-name>
-```

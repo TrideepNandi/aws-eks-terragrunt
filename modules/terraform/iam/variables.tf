@@ -43,6 +43,20 @@ variable "name_prefix" {
   default     = ""
 }
 
+variable "users" {
+  description = "Map of IAM users to create"
+  type = map(object({
+    name_suffix                = string
+    path                      = optional(string, "/")
+    managed_policy_arns       = optional(list(string), [])
+    custom_policy_attachments = optional(list(string), [])
+    inline_policies          = optional(map(string), {})
+    create_access_key        = optional(bool, false)
+    tags                     = optional(map(string), {})
+  }))
+  default = {}
+}
+
 variable "tags" {
   description = "Common tags for all resources"
   type        = map(string)
