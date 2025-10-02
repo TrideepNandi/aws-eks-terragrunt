@@ -10,7 +10,6 @@ terraform {
 locals {
   region_vars = read_terragrunt_config(find_in_parent_folders("region.hcl"))
   context_vars = read_terragrunt_config(find_in_parent_folders("context.hcl"))
-  account_vars = read_terragrunt_config(find_in_parent_folders("account.hcl"))
   aws_region = local.region_vars.locals.aws_region
 }
 
@@ -64,23 +63,6 @@ dependency "networking" {
   }
 }
 
-# Add dependency on IAM roles and users to ensure they exist before EKS tries to reference them
-dependency "iam_roles" {
-  config_path = "../../../iam/roles"
-  skip_outputs = true
-  
-  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan"]
-  mock_outputs = {}
-}
-
-dependency "iam_users" {
-  config_path = "../../../iam/users"
-  skip_outputs = true
-  
-  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan"]
-  mock_outputs = {}
-}
-
 inputs = {
   context = {
     aws_region       = local.aws_region
@@ -127,33 +109,7 @@ inputs = {
         principal_arn     = "arn:aws:iam::${local.account_vars.locals.account_id}:role/eks-global-developer-role"
         policy_associations = {
           viewer = {
-            policy_arn = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSViewPolicy"
-            access_scope = {
-              type = "cluster"
-            }
-          }
-        }
-      }
-
-      devops_user = {
-        kubernetes_groups = []
-        principal_arn     = "arn:aws:iam::${local.account_vars.locals.account_id}:user/eks-devops"
-        policy_associations = {
-          admin = {
-            policy_arn = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
-            access_scope = {
-              type = "cluster"
-            }
-          }
-        }
-      }
-
-      developer_user = {
-        kubernetes_groups = []
-        principal_arn     = "arn:aws:iam::${local.account_vars.locals.account_id}:user/eks-developer"
-        policy_associations = {
-          viewer = {
-            policy_arn = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSViewPolicy"
+            policy_arn = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSViewerPolicy"
             access_scope = {
               type = "cluster"
             }
